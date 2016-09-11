@@ -90,5 +90,6 @@ ENV/
 # Rope project settings
 .ropeproject
 
-/.idea
+.idea
 config.py
+english_cards.db
