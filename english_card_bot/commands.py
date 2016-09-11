@@ -1,16 +1,16 @@
 from telegraph_commander.command import BotCommand
 
-from english_card_bot import EnglishCardBot
+from english_card_bot import bot
 from english_card_bot.db import session, UserDictionary, TelegramUser
 
 
-@EnglishCardBot.router.command('menu')
+@bot.router.command('menu')
 class MenuCommand(BotCommand):
     async def run(self):
         await self.telegram_api.send_message(self.chat_id, 'Select action', variants=[['/add', '/check']])
 
 
-@EnglishCardBot.router.command('add')
+@bot.router.command('add')
 class AddWordCommand(BotCommand):
     PARAMS = [
         dict(name='word'),
@@ -29,7 +29,7 @@ class AddWordCommand(BotCommand):
         await self.end_command()
 
 
-@EnglishCardBot.router.command('check')
+@bot.router.command('check')
 class CheckOneWord(BotCommand):
     PARAMS = [
         dict(name='translation', dynamic=True)
