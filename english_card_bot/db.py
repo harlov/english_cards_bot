@@ -46,9 +46,15 @@ class UserDictionary(Base):
         return session.query(cls).filter(cls.user == user).order_by(func.random()).first()
 
 
-engine = create_engine('sqlite:///english_cards.db')
-DBSession = sessionmaker(bind=engine)
+class DB():
+    def __init__(self, config):
+        self.config = config
+        self.bind_configuration()
 
-Base.metadata.create_all(engine)
+    def bind_configuration(self):
+        self.engine = self.create_engine(self.config.DB_CONNECTION)
+        Base.metadata.create_all(self.engine)
+        self.session_factory = sessionmaker(bind=self.engine)
 
-session = DBSession()
+    def get_session(self):
+        return self.session_factory()

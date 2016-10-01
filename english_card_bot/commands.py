@@ -51,3 +51,4 @@ class CheckOneWord(BotCommand):
 
         await self.end_command()
         return dict(command='check')
+
