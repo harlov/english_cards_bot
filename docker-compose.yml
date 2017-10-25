@@ -3,4 +3,4 @@ services:
   english_bot:
     build: .
     volumes:
-      - /var/lib/english_cards:/var/lib/english_cards_var
+      - /var/lib/english_cards:/var/lib/english_cards
