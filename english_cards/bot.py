@@ -71,6 +71,10 @@ class TrainConversation(Conversation):
     def entry(self, update):
         return RouteChain(self.prompt_quest, wait_input=False)
 
+    @bind_to_command(RouteMatch('/exit'))
+    def exit(self, update):
+        return
+
     def prompt_quest(self, update):
         word = logic.get_random_word()
         if word:
