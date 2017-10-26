@@ -11,5 +11,5 @@ install:
 
 script:
   - flake8
-  - pytest -x -vvv tests
+  - PYTHONPATH=$PYTHONPATH:english_cards pytest -x -vvv tests
 
