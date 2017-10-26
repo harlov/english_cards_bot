@@ -73,9 +73,13 @@ class TrainConversation(Conversation):
 
     def prompt_quest(self, update):
         word = logic.get_random_word()
-        update.message.chat.storage['quest_word'] = word
-        update.reply('Translate "{}"'.format(word.name))
-        return RouteChain(self.input_answer)
+        if word:
+            update.message.chat.storage['quest_word'] = word
+            update.reply('Translate "{}"'.format(word.name))
+            return RouteChain(self.input_answer)
+        else:
+            update.reply('Add at least one word first!')
+            return
 
     def input_answer(self, update):
         if update.message.chat.storage['quest_word'].translate.strip() == update.message.text.strip():

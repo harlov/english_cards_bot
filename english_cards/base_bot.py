@@ -31,6 +31,9 @@ class Chat(TelegramObject):
         if chat_id not in cls._chats_cache:
             cls._chats_cache[chat_id] = super().__new__(cls)
             cls._chats_cache[chat_id].storage = dict()
+            cls._chats_cache[chat_id].route_state = {
+                'conversation': None
+            }
 
         return cls._chats_cache[chat_id]
 
@@ -57,6 +60,14 @@ class Update(TelegramObject):
 
     def reply(self, text):
         self.bot.send_message(chat_id=self.message.chat.id, text=text)
+
+    @property
+    def user_storage(self):
+        return self.message.chat.storage
+
+    @property
+    def route_state(self):
+        return self.message.chat.route_state
 
 
 class Bot:
@@ -182,21 +193,21 @@ class Conversation:
 
 
 class Router:
-    conversation = None
 
     def __init__(self, route_map):
         self.route_map = route_map
 
-    def _handle_conversation(self, bot, update, conversation_cls=None):
-        if self.conversation is None:
-            self.conversation = conversation_cls(bot)
+    @staticmethod
+    def _handle_conversation(bot, update, conversation_cls=None):
+        if update.route_state['conversation'] is None:
+            update.route_state['conversation'] = conversation_cls(bot)
 
-        result = self.conversation.handle(update)
+        result = update.route_state['conversation'].handle(update)
         if result == Conversation.CONVERSATION_END:
-            self.conversation = None
+            update.route_state['conversation'] = None
 
     def handle(self, bot, update):
-        if self.conversation is not None:
+        if update.route_state['conversation'] is not None:
             self._handle_conversation(bot, update)
             return
 
