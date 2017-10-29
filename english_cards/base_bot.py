@@ -136,6 +136,8 @@ class Bot:
             self._router.handle(self, update)
         except TelegramFormatError as err:
             logger.error('Telegram format error: {}'.format(err))
+        except Exception as err:
+            logger.error('Unknown error: {}'.format(err))
         finally:
             self._offset = update_data['update_id'] + 1
 
