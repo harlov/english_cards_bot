@@ -1,15 +1,18 @@
 import json
 import sys
 
-from english_cards import logic
 from english_cards.logger import logger
+from english_cards.db import engine
+from english_cards import logic
 from english_cards.base_bot import (
     Bot,
     Router,
     RouteMatch,
     RouteChain,
     Conversation,
-    bind_to_command
+    bind_to_command,
+    replay_keyboard_markup,
+    keyboard_item
 )
 
 TRAIN_QUEST, TRAIN_ANSWER, = range(2)
@@ -25,9 +28,9 @@ def get_config(path=None):
 
 
 def start(bot, update):
-    update.reply("""
+    update.reply(text="""
      /add - Add word to dictionary\n/train - Check your knowledge.
-    """)
+    """, reply_markup=replay_keyboard_markup([[keyboard_item('/add'), keyboard_item('/train')]]))
 
 
 class AddWordConversation(Conversation):
@@ -36,6 +39,7 @@ class AddWordConversation(Conversation):
 
     @bind_to_command(RouteMatch('/exit'))
     def exit(self, update):
+        update.reply(text='end add dialog', reply_markup=replay_keyboard_markup())
         return
 
     def prompt_word(self, update):
@@ -73,20 +77,22 @@ class TrainConversation(Conversation):
 
     @bind_to_command(RouteMatch('/exit'))
     def exit(self, update):
+        update.reply(text='exit train dialog', reply_markup=replay_keyboard_markup())
         return
 
     def prompt_quest(self, update):
-        word = logic.get_random_word()
-        if word:
-            update.message.chat.storage['quest_word'] = word
-            update.reply('Translate "{}"'.format(word.name))
+        quest_word, translate_variants = logic.get_quest(4)
+        if quest_word:
+            update.message.chat.storage['quest'] = quest_word
+            update.reply('Translate "{}"'.format(quest_word.name),
+                         reply_markup=replay_keyboard_markup([translate_variants]))
             return RouteChain(self.input_answer)
         else:
             update.reply('Add at least one word first!')
             return
 
     def input_answer(self, update):
-        if update.message.chat.storage['quest_word'].translate.strip() == update.message.text.strip():
+        if update.message.chat.storage['quest'].translate.strip() == update.message.text.strip():
             update.reply('Correct!')
         else:
             update.reply('Incorrect!')
@@ -95,6 +101,7 @@ class TrainConversation(Conversation):
 
 
 def run_bot_loop(config):
+    engine.init()
     router = Router(
         {
             RouteMatch('/start'): start,
@@ -111,7 +118,10 @@ def run():
     config_path = args[0] if args else None
     config = get_config(config_path)
     logger.info('starting english cards bot...')
-    run_bot_loop(config)
+    try:
+        run_bot_loop(config)
+    except KeyboardInterrupt:
+        logger.info('bot terminated.')
 
 
 if __name__ == '__main__':
