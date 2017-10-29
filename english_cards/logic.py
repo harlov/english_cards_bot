@@ -1,3 +1,5 @@
+import random
+
 from sqlalchemy.sql.expression import func
 from sqlalchemy.exc import IntegrityError
 
@@ -26,6 +28,10 @@ def add_word(name, translate):
     return word
 
 
-def get_random_word():
+def get_quest(count):
     session = get_session()
-    return session.query(Word).order_by(func.random()).first()
+    quest_word = session.query(Word).order_by(func.random()).first()
+    other_words = session.query(Word).filter(Word.id != quest_word.id).order_by(func.random()).limit(count-1).all()
+    translate_variants = [word.translate for word in other_words + [quest_word]]
+    random.shuffle(translate_variants)
+    return quest_word, translate_variants

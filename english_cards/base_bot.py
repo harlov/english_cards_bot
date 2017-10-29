@@ -1,6 +1,9 @@
 import types
+import json
 
 import requests
+
+from english_cards.logger import logger
 
 
 class TelegramObject:
@@ -48,6 +51,26 @@ class Message(TelegramObject):
         self.chat = Chat(self.chat)
 
 
+def keyboard_item(text, request_contact=False, request_location=False):
+    return {
+        'text': text,
+        'request_contact': request_contact,
+        'request_location': request_location
+    }
+
+
+def replay_keyboard_markup(items=None, one_time_keyboard=True):
+    if not items:
+        return {
+            'remove_keyboard': True
+        }
+    else:
+        return {
+            'keyboard': items,
+            'one_time_keyboard': one_time_keyboard
+        }
+
+
 class Update(TelegramObject):
     ID_FIELD = 'update_id'
 
@@ -58,8 +81,15 @@ class Update(TelegramObject):
     def _extract_sub_objects(self):
         self.message = Message(self._input_data['message'])
 
-    def reply(self, text):
-        self.bot.send_message(chat_id=self.message.chat.id, text=text)
+    def reply(self, text, reply_markup=None):
+        args = {
+            'chat_id': self.message.chat.id,
+            'text': text
+        }
+        if reply_markup:
+            args['reply_markup'] = reply_markup
+
+        self.bot.send_message(**args)
 
     @property
     def user_storage(self):
@@ -106,7 +136,7 @@ class Bot:
             for item in update_items:
                 self.process_update(Update(item, self))
 
-    def send_message(self, chat_id, text, reply_to_message_id=None):
+    def send_message(self, chat_id, text, reply_to_message_id=None, reply_markup=None):
         params = {
             'chat_id': chat_id,
             'text': text
@@ -114,7 +144,12 @@ class Bot:
         if reply_to_message_id:
             params['reply_to_message_id'] = reply_to_message_id
 
-        return self._call_method('sendMessage', params=params)
+        if reply_markup:
+            params['reply_markup'] = json.dumps(reply_markup)
+
+        res = self._call_method('sendMessage', params=params)
+        if res.status_code != 200:
+            logger.error(res.text)
 
 
 class RouteMatch:
