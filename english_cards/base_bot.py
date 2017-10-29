@@ -1,6 +1,13 @@
 import types
+import json
 
 import requests
+
+from english_cards.logger import logger
+
+
+class TelegramFormatError(Exception):
+    pass
 
 
 class TelegramObject:
@@ -15,7 +22,10 @@ class TelegramObject:
 
     @property
     def id(self):
-        return self._input_data[self.ID_FIELD]
+        try:
+            return self._input_data[self.ID_FIELD]
+        except KeyError:
+            raise TelegramFormatError('Object {} input data has no ID field "{}"'.format(self, self.ID_FIELD))
 
     def __getattr__(self, item):
         return self._input_data[item]
@@ -26,9 +36,13 @@ class Chat(TelegramObject):
 
     def __new__(cls, *args, **kwargs):
         data = args[0]
-        chat_id = data['id']
+        try:
+            chat_id = data['id']
+        except KeyError:
+            raise TelegramFormatError('Chat id not found in "{}"'.format(data))
 
         if chat_id not in cls._chats_cache:
+            logger.debug('Create chat for <{}>'.format(chat_id))
             cls._chats_cache[chat_id] = super().__new__(cls)
             cls._chats_cache[chat_id].storage = dict()
             cls._chats_cache[chat_id].route_state = {
@@ -45,7 +59,30 @@ class Message(TelegramObject):
     ID_FIELD = 'message_id'
 
     def _extract_sub_objects(self):
-        self.chat = Chat(self.chat)
+        try:
+            self.chat = Chat(self.chat)
+        except KeyError:
+            raise TelegramFormatError('Message has invalid format: chat not found.')
+
+
+def keyboard_item(text, request_contact=False, request_location=False):
+    return {
+        'text': text,
+        'request_contact': request_contact,
+        'request_location': request_location
+    }
+
+
+def replay_keyboard_markup(items=None, one_time_keyboard=True):
+    if not items:
+        return {
+            'remove_keyboard': True
+        }
+    else:
+        return {
+            'keyboard': items,
+            'one_time_keyboard': one_time_keyboard
+        }
 
 
 class Update(TelegramObject):
@@ -56,10 +93,20 @@ class Update(TelegramObject):
         super(Update, self).__init__(input_data)
 
     def _extract_sub_objects(self):
-        self.message = Message(self._input_data['message'])
+        try:
+            self.message = Message(self._input_data['messagwe'])
+        except KeyError:
+            raise TelegramFormatError('Update has invalid format: message not found.')
 
-    def reply(self, text):
-        self.bot.send_message(chat_id=self.message.chat.id, text=text)
+    def reply(self, text, reply_markup=None):
+        args = {
+            'chat_id': self.message.chat.id,
+            'text': text
+        }
+        if reply_markup:
+            args['reply_markup'] = reply_markup
+
+        self.bot.send_message(**args)
 
     @property
     def user_storage(self):
@@ -83,9 +130,14 @@ class Bot:
         self._router = router
         self._offset = 0
 
-    def process_update(self, update):
-        self._offset = update.id + 1
-        self._router.handle(self, update)
+    def process_update(self, update_data):
+        try:
+            update = Update(update_data, self)
+            self._router.handle(self, update)
+        except TelegramFormatError as err:
+            logger.error('Telegram format error: {}'.format(err))
+        finally:
+            self._offset = update_data['update_id'] + 1
 
     def run(self):
         while True:
@@ -104,9 +156,9 @@ class Bot:
             update_items = update_object['result']
 
             for item in update_items:
-                self.process_update(Update(item, self))
+                self.process_update(item)
 
-    def send_message(self, chat_id, text, reply_to_message_id=None):
+    def send_message(self, chat_id, text, reply_to_message_id=None, reply_markup=None):
         params = {
             'chat_id': chat_id,
             'text': text
@@ -114,7 +166,12 @@ class Bot:
         if reply_to_message_id:
             params['reply_to_message_id'] = reply_to_message_id
 
-        return self._call_method('sendMessage', params=params)
+        if reply_markup:
+            params['reply_markup'] = json.dumps(reply_markup)
+
+        res = self._call_method('sendMessage', params=params)
+        if res.status_code != 200:
+            logger.error(res.text)
 
 
 class RouteMatch:
