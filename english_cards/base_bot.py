@@ -94,7 +94,7 @@ class Update(TelegramObject):
 
     def _extract_sub_objects(self):
         try:
-            self.message = Message(self._input_data['messagwe'])
+            self.message = Message(self._input_data['message'])
         except KeyError:
             raise TelegramFormatError('Update has invalid format: message not found.')
 
