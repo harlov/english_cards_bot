@@ -51,3 +51,23 @@ def test_add_duplicated_word():
             name='test',
             translate='test_translate'
         )
+
+
+@pytest.mark.parametrize('count', [2, 3, 4, 5])
+@pytest.mark.usefixtures('words')
+def test_get_quest(count):
+    from english_cards.logic import get_quest
+    quest_word, translate_variants = get_quest(count)
+    assert quest_word is not None
+    assert len(translate_variants) == count
+    assert quest_word.translate in translate_variants
+
+
+def test_get_quest_count_one():
+    from english_cards.logic import (
+        get_quest,
+        LogicError
+    )
+
+    with pytest.raises(LogicError):
+        get_quest(1)

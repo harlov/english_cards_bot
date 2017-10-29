@@ -29,6 +29,9 @@ def add_word(name, translate):
 
 
 def get_quest(count):
+    if count < 2:
+        raise LogicError('At least 2 words required in quest')
+
     session = get_session()
     quest_word = session.query(Word).order_by(func.random()).first()
     other_words = session.query(Word).filter(Word.id != quest_word.id).order_by(func.random()).limit(count-1).all()
